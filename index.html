@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Zurich Airport Restaurants</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Zurich Airport Restaurants</title>
+<script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 font-sans">
 
@@ -17,22 +17,16 @@
 
 <!-- FILTERS -->
 <div class="p-4 space-y-4">
-  <input 
-    type="text" 
-    id="search"
-    placeholder="Search by name, cuisine, or info…" 
-    class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+  <input type="text" id="search" placeholder="Search by name, cuisine, or info…" 
+         class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none">
   
-  <select 
-    id="areaFilter"
-    class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+  <select id="areaFilter" class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none">
     <option value="all">All areas</option>
     <option value="Public">Public Area</option>
     <option value="Passenger">Passenger Area</option>
   </select>
 
-  <button id="resetFilters"
-          class="w-full p-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">
+  <button id="resetFilters" class="w-full p-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">
     Reset Filters
   </button>
 </div>
@@ -44,47 +38,41 @@
 <div id="restaurantList" class="p-4 space-y-6"></div>
 
 <script>
+const apiURL = "https://6797e9d9c2c861de0c6e6bdf.mockapi.io/search";
+const objectId = 1; // single object in API
+
 let globalVariables = { restaurantType: "", searchValue: "" };
 let restaurantsData = [];
-let itemId = null;
-const apiURL = "https://6797e9d9c2c861de0c6e6bdf.mockapi.io/search";
 
-// FETCH DATA
+// Fetch the object from MockAPI
 async function fetchRestaurants() {
   try {
-    const response = await fetch(apiURL);
-    const data = await response.json();
+    const res = await fetch(`${apiURL}/${objectId}`);
+    const data = await res.json();
 
-    if (!data.length) throw new Error("No data in API");
+    globalVariables = data.global || { restaurantType: "", searchValue: "" };
+    restaurantsData = data.restaurants || [];
 
-    const mainData = data[0];
-    itemId = mainData.id;           // get actual object ID
-    globalVariables = mainData.global;
-    restaurantsData = mainData.restaurants;
-
-    // Set search input to global value
     document.getElementById("search").value = globalVariables.searchValue || "";
     updateActiveGlobalsDisplay();
     filterList();
-  } catch (error) {
-    console.error("Error fetching restaurants:", error);
+  } catch (err) {
+    console.error("Error fetching restaurants:", err);
     document.getElementById("restaurantList").innerHTML =
       "<p class='text-center text-red-500'>Failed to load restaurants.</p>";
   }
 }
 
-// UPDATE ACTIVE GLOBALS DISPLAY
+// Update displayed global variables
 function updateActiveGlobalsDisplay() {
   const container = document.getElementById("activeGlobals");
-  const activeText = [];
-  if (globalVariables.restaurantType) activeText.push(`Type: ${globalVariables.restaurantType}`);
-  if (globalVariables.searchValue) activeText.push(`Search: ${globalVariables.searchValue}`);
-  container.innerHTML = activeText.length
-    ? `<p>Active global filters: ${activeText.join(", ")}</p>`
-    : "";
+  const active = [];
+  if (globalVariables.restaurantType) active.push(`Type: ${globalVariables.restaurantType}`);
+  if (globalVariables.searchValue) active.push(`Search: ${globalVariables.searchValue}`);
+  container.innerHTML = active.length ? `<p>Active global filters: ${active.join(", ")}</p>` : "";
 }
 
-// RENDER RESTAURANT LIST
+// Render restaurant list
 function renderList(items) {
   const listEl = document.getElementById("restaurantList");
   listEl.innerHTML = "";
@@ -95,7 +83,7 @@ function renderList(items) {
   }
 
   items.forEach(r => {
-    const mapURL = r.mapLink || `https://www.google.com/maps?q=${r.lat},${r.lng}`;
+    const mapURL = r.mapLink || "#";
     const card = document.createElement("div");
     card.className = "bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition shadow-md flex flex-col sm:flex-row";
 
@@ -103,7 +91,6 @@ function renderList(items) {
       <div class="w-full sm:w-36 h-40 sm:h-32 overflow-hidden flex-shrink-0">
         <img src="${r.photoURL}" alt="Photo of ${r.name}" class="w-full h-full object-cover sm:rounded-l-xl rounded-t-xl">
       </div>
-
       <div class="p-5 flex-1 flex flex-col justify-between space-y-2">
         <div>
           <h2 class="text-xl font-semibold">${r.name}</h2>
@@ -111,7 +98,6 @@ function renderList(items) {
           <p class="text-gray-700"><strong>Type:</strong> ${r.cuisine || "—"}</p>
           <p class="text-gray-600">${r.locationInfo}</p>
         </div>
-
         <div class="flex space-x-3 mt-3">
           ${r.website ? `<a href="${r.website}" target="_blank" rel="noopener noreferrer"
             class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">Website</a>` : ""}
@@ -124,7 +110,7 @@ function renderList(items) {
   });
 }
 
-// FILTER LIST
+// Filter list
 function filterList() {
   const searchText = document.getElementById("search").value.toLowerCase();
   const area = document.getElementById("areaFilter").value;
@@ -134,29 +120,22 @@ function filterList() {
       r.name.toLowerCase().includes(searchText) ||
       r.cuisine.toLowerCase().includes(searchText) ||
       r.locationInfo.toLowerCase().includes(searchText);
-
     const matchArea = area === "all" || r.area === area;
-    const matchType = globalVariables.restaurantType
-      ? r.cuisine.toLowerCase().includes(globalVariables.restaurantType.toLowerCase())
-      : true;
-
+    const matchType = globalVariables.restaurantType ?
+      r.cuisine.toLowerCase().includes(globalVariables.restaurantType.toLowerCase()) : true;
     return matchSearch && matchArea && matchType;
   });
 
   if (globalVariables.searchValue) {
-    const exact = filtered.filter(r =>
-      r.name.toLowerCase().includes(globalVariables.searchValue.toLowerCase())
-    );
-    const rest = filtered.filter(
-      r => !r.name.toLowerCase().includes(globalVariables.searchValue.toLowerCase())
-    );
+    const exact = filtered.filter(r => r.name.toLowerCase().includes(globalVariables.searchValue.toLowerCase()));
+    const rest = filtered.filter(r => !r.name.toLowerCase().includes(globalVariables.searchValue.toLowerCase()));
     filtered = [...exact, ...rest];
   }
 
   renderList(filtered);
 }
 
-// RESET FILTERS USING PATCH
+// Reset filters and PATCH API
 async function resetFilters() {
   document.getElementById("search").value = "";
   document.getElementById("areaFilter").value = "all";
@@ -168,25 +147,23 @@ async function resetFilters() {
   filterList();
 
   try {
-    if (itemId) {
-      await fetch(`${apiURL}/${itemId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ global: globalVariables })
-      });
-      console.log("Global variables reset in API successfully.");
-    }
-  } catch (error) {
-    console.error("Error resetting global variables in API:", error);
+    await fetch(`${apiURL}/${objectId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ global: globalVariables })
+    });
+    console.log("Global variables reset successfully in API.");
+  } catch (err) {
+    console.error("Error resetting global variables:", err);
   }
 }
 
-// EVENT LISTENERS
+// Event listeners
 document.getElementById("search").addEventListener("input", filterList);
 document.getElementById("areaFilter").addEventListener("change", filterList);
 document.getElementById("resetFilters").addEventListener("click", resetFilters);
 
-// INITIAL LOAD + AUTO-POLL
+// Initial load
 fetchRestaurants();
 setInterval(fetchRestaurants, 5000);
 </script>

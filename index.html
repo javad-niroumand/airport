@@ -47,7 +47,8 @@
 <script>
 let globalVariables = { restaurantType: "", searchValue: "" };
 let restaurantsData = [];
-const apiURL = "https://6797e9d9c2c861de0c6e6bdf.mockapi.io/search/1"; // direct endpoint for PUT
+let itemId = null; // store MockAPI item ID
+const apiURL = "https://6797e9d9c2c861de0c6e6bdf.mockapi.io/search";
 
 // FETCH DATA
 async function fetchRestaurants() {
@@ -55,8 +56,11 @@ async function fetchRestaurants() {
     const response = await fetch(apiURL);
     const data = await response.json();
 
-    globalVariables = data.global;
-    restaurantsData = data.restaurants;
+    const mainData = data[0]; // first item
+    itemId = mainData.id;
+
+    globalVariables = mainData.global;
+    restaurantsData = mainData.restaurants;
 
     // Apply global variables as defaults
     document.getElementById("search").value = globalVariables.searchValue || "";
@@ -93,7 +97,7 @@ function renderList(items) {
   }
 
   items.forEach(r => {
-    const mapURL = `https://www.google.com/maps?q=${r.lat},${r.lng}`;
+    const mapURL = r.mapLink || `https://www.google.com/maps?q=${r.lat},${r.lng}`;
 
     const card = document.createElement("div");
     card.className =
@@ -169,19 +173,20 @@ async function resetFilters() {
   updateActiveGlobalsDisplay();
   filterList();
 
-  // Update global variables in API
   try {
-    await fetch(apiURL, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ global: globalVariables })
-    });
+    if (itemId) {
+      await fetch(`${apiURL}/${itemId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ global: globalVariables })
+      });
+    }
   } catch (error) {
     console.error("Error resetting global variables in API:", error);
   }
 }
 
-// EVENTS
+// EVENT LISTENERS
 document.getElementById("search").addEventListener("input", filterList);
 document.getElementById("areaFilter").addEventListener("change", filterList);
 document.getElementById("resetFilters").addEventListener("click", resetFilters);

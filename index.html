@@ -38,31 +38,48 @@
   </button>
 </div>
 
+<!-- ACTIVE GLOBAL VARIABLES DISPLAY -->
+<div id="activeGlobals" class="p-4 space-y-2 text-gray-700"></div>
+
 <!-- LIST -->
 <div id="restaurantList" class="p-4 space-y-6"></div>
 
 <script>
 let globalVariables = { restaurantType: "", searchValue: "" };
 let restaurantsData = [];
+const apiURL = "https://6797e9d9c2c861de0c6e6bdf.mockapi.io/search/1"; // direct endpoint for PUT
 
 // FETCH DATA
 async function fetchRestaurants() {
   try {
-    const response = await fetch("https://6797e9d9c2c861de0c6e6bdf.mockapi.io/search");
+    const response = await fetch(apiURL);
     const data = await response.json();
 
-    globalVariables = data[0].global;
-    restaurantsData = data[0].restaurants;
+    globalVariables = data.global;
+    restaurantsData = data.restaurants;
 
-    // Apply global variables as default filter
-    document.getElementById('search').value = globalVariables.searchValue || "";
+    // Apply global variables as defaults
+    document.getElementById("search").value = globalVariables.searchValue || "";
+    updateActiveGlobalsDisplay();
     filterList();
-
   } catch (error) {
     console.error("Error fetching restaurants:", error);
     document.getElementById("restaurantList").innerHTML =
       "<p class='text-center text-red-500'>Failed to load restaurants.</p>";
   }
+}
+
+// UPDATE ACTIVE GLOBALS DISPLAY
+function updateActiveGlobalsDisplay() {
+  const container = document.getElementById("activeGlobals");
+  const activeText = [];
+
+  if (globalVariables.restaurantType) activeText.push(`Type: ${globalVariables.restaurantType}`);
+  if (globalVariables.searchValue) activeText.push(`Search: ${globalVariables.searchValue}`);
+
+  container.innerHTML = activeText.length
+    ? `<p>Active global filters: ${activeText.join(", ")}</p>`
+    : "";
 }
 
 // RENDER CARDS
@@ -76,38 +93,33 @@ function renderList(items) {
   }
 
   items.forEach(r => {
+    const mapURL = `https://www.google.com/maps?q=${r.lat},${r.lng}`;
+
     const card = document.createElement("div");
     card.className =
-      "bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition shadow-md";
+      "bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition shadow-md flex flex-col sm:flex-row";
 
     card.innerHTML = `
-      <div class="w-full h-40 sm:w-full sm:h-48 overflow-hidden">
-        <img 
-          src="${r.photoURL}"
-          alt="Photo of ${r.name}"
-          class="w-full h-full object-cover"
-        >
+      <div class="w-full sm:w-36 h-40 sm:h-32 overflow-hidden flex-shrink-0">
+        <img src="${r.photoURL}" alt="Photo of ${r.name}" class="w-full h-full object-cover sm:rounded-l-xl rounded-t-xl">
       </div>
 
-      <div class="p-5 space-y-2">
-        <h2 class="text-xl font-semibold">${r.name}</h2>
-        <p class="text-gray-600"><strong>Area:</strong> ${r.area}</p>
-        <p class="text-gray-600"><strong>Type:</strong> ${r.cuisine || "—"}</p>
-        <p class="text-gray-600">${r.locationInfo}</p>
+      <div class="p-5 flex-1 flex flex-col justify-between space-y-2">
+        <div>
+          <h2 class="text-xl font-semibold">${r.name}</h2>
+          <p class="text-gray-700"><strong>Area:</strong> ${r.area}</p>
+          <p class="text-gray-700"><strong>Type:</strong> ${r.cuisine || "—"}</p>
+          <p class="text-gray-600">${r.locationInfo}</p>
+        </div>
 
-        <div class="flex space-x-3 pt-3">
-          ${r.website
-            ? `<a href="${r.website}" target="_blank" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">Website</a>`
-            : ""
-          }
-          <a href="${r.mapLink}" target="_blank" 
-             class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
-             Map
-          </a>
+        <div class="flex space-x-3 mt-3">
+          ${r.website ? `<a href="${r.website}" target="_blank" rel="noopener noreferrer"
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">Website</a>` : ""}
+          <a href="${mapURL}" target="_blank" rel="noopener noreferrer"
+             class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">Map</a>
         </div>
       </div>
     `;
-
     listEl.appendChild(card);
   });
 }
@@ -118,11 +130,10 @@ function filterList() {
   const area = document.getElementById("areaFilter").value;
 
   let filtered = restaurantsData.filter(r => {
-    const matchSearch =
-      (!searchText || 
-       r.name.toLowerCase().includes(searchText) ||
-       r.cuisine.toLowerCase().includes(searchText) ||
-       r.locationInfo.toLowerCase().includes(searchText));
+    const matchSearch = !searchText ||
+      r.name.toLowerCase().includes(searchText) ||
+      r.cuisine.toLowerCase().includes(searchText) ||
+      r.locationInfo.toLowerCase().includes(searchText);
 
     const matchArea = area === "all" || r.area === area;
 
@@ -148,17 +159,32 @@ function filterList() {
 }
 
 // RESET FILTERS
-document.getElementById("resetFilters").addEventListener("click", () => {
+async function resetFilters() {
   document.getElementById("search").value = "";
   document.getElementById("areaFilter").value = "all";
+
   globalVariables.restaurantType = "";
   globalVariables.searchValue = "";
-  filterList();
-});
 
-// EVENT LISTENERS
+  updateActiveGlobalsDisplay();
+  filterList();
+
+  // Update global variables in API
+  try {
+    await fetch(apiURL, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ global: globalVariables })
+    });
+  } catch (error) {
+    console.error("Error resetting global variables in API:", error);
+  }
+}
+
+// EVENTS
 document.getElementById("search").addEventListener("input", filterList);
 document.getElementById("areaFilter").addEventListener("change", filterList);
+document.getElementById("resetFilters").addEventListener("click", resetFilters);
 
 // INITIAL LOAD + AUTO-POLL
 fetchRestaurants();

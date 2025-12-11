@@ -1,12 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Zurich Airport Restaurants</title>
-<script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zurich Airport Restaurants</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-
 <body class="bg-gray-100 font-sans">
 
 <!-- HEADER -->
@@ -34,7 +33,7 @@
 
   <button id="resetFilters"
           class="w-full p-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">
-    Reset Global Filters
+    Reset Filters
   </button>
 </div>
 
@@ -43,20 +42,24 @@
 
 <script>
 const apiURL = "https://6797e9d9c2c861de0c6e6bdf.mockapi.io/search";
-const objectId = 1; // single object in API
-
 let globalVariables = { restaurantType: "", searchValue: "" };
 let restaurantsData = [];
+let firstItemId = null;
 
 // FETCH DATA
 async function fetchRestaurants() {
   try {
-    const response = await fetch(`${apiURL}/${objectId}`);
+    const response = await fetch(apiURL);
     const data = await response.json();
 
-    globalVariables = data.global || { restaurantType: "", searchValue: "" };
-    restaurantsData = data.restaurants || [];
+    if (!data || !data.length) return;
+    
+    const firstItem = data[0];
+    firstItemId = firstItem.id; // store for PATCH
+    globalVariables = firstItem.global || {};
+    restaurantsData = firstItem.restaurants || [];
 
+    // Apply global variables as default filter
     document.getElementById('search').value = globalVariables.searchValue || "";
     filterList();
 
@@ -80,27 +83,36 @@ function renderList(items) {
   items.forEach(r => {
     const card = document.createElement("div");
     card.className =
-      "bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition shadow-md flex flex-col sm:flex-row";
+      "bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition shadow-md";
 
     card.innerHTML = `
-      <div class="w-full sm:w-36 h-40 sm:h-32 overflow-hidden flex-shrink-0">
-        <img src="${r.photoURL}" alt="Photo of ${r.name}" class="w-full h-full object-cover sm:rounded-l-xl rounded-t-xl">
+      <div class="w-full h-40 sm:w-full sm:h-48 overflow-hidden">
+        <img 
+          src="${r.photoURL}"
+          alt="Photo of ${r.name}"
+          class="w-full h-full object-cover"
+        >
       </div>
-      <div class="p-5 flex-1 flex flex-col justify-between space-y-2">
-        <div>
-          <h2 class="text-xl font-semibold">${r.name}</h2>
-          <p class="text-gray-700"><strong>Area:</strong> ${r.area}</p>
-          <p class="text-gray-700"><strong>Type:</strong> ${r.cuisine || "—"}</p>
-          <p class="text-gray-600">${r.locationInfo}</p>
-        </div>
-        <div class="flex space-x-3 mt-3">
-          ${r.website ? `<a href="${r.website}" target="_blank" rel="noopener noreferrer"
-            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">Website</a>` : ""}
-          <a href="${r.mapLink}" target="_blank" rel="noopener noreferrer"
-             class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">Map</a>
+
+      <div class="p-5 space-y-2">
+        <h2 class="text-xl font-semibold">${r.name}</h2>
+        <p class="text-gray-600"><strong>Area:</strong> ${r.area}</p>
+        <p class="text-gray-600"><strong>Type:</strong> ${r.cuisine || "—"}</p>
+        <p class="text-gray-600">${r.locationInfo}</p>
+
+        <div class="flex space-x-3 pt-3">
+          ${r.website
+            ? `<a href="${r.website}" target="_blank" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">Website</a>`
+            : ""
+          }
+          <a href="${r.mapLink}" target="_blank" 
+             class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+             Map
+          </a>
         </div>
       </div>
     `;
+
     listEl.appendChild(card);
   });
 }
@@ -126,6 +138,7 @@ function filterList() {
     return matchSearch && matchArea && matchType;
   });
 
+  // Prioritize exact match if global.searchValue exists
   if (globalVariables.searchValue) {
     const exact = filtered.filter(r =>
       r.name.toLowerCase().includes(globalVariables.searchValue.toLowerCase())
@@ -139,24 +152,26 @@ function filterList() {
   renderList(filtered);
 }
 
-// RESET GLOBAL VARIABLES in API
+// RESET FILTERS + PATCH API
 document.getElementById("resetFilters").addEventListener("click", async () => {
-  globalVariables = { restaurantType: "", searchValue: "" };
-  
+  document.getElementById("search").value = "";
+  document.getElementById("areaFilter").value = "all";
+  globalVariables.restaurantType = "";
+  globalVariables.searchValue = "";
+
+  filterList();
+
+  if (!firstItemId) return;
+
   try {
-    await fetch(`${apiURL}/${objectId}`, {
+    await fetch(`${apiURL}/${firstItemId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ global: globalVariables })
+      body: JSON.stringify({ global: { restaurantType: "", searchValue: "" } })
     });
     console.log("Global variables reset in API");
-
-    // After reset, update search input and re-filter list
-    document.getElementById("search").value = "";
-    document.getElementById("areaFilter").value = "all";
-    filterList();
   } catch (err) {
-    console.error("Error resetting global variables:", err);
+    console.error("Failed to PATCH global variables:", err);
   }
 });
 

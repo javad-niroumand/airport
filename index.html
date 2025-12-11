@@ -46,18 +46,23 @@
 <script>
 let globalVariables = { restaurantType: "", searchValue: "" };
 let restaurantsData = [];
+let itemId = null;
 const apiURL = "https://6797e9d9c2c861de0c6e6bdf.mockapi.io/search";
-const itemId = 1; // Use the actual ID of your MockAPI object
 
 // FETCH DATA
 async function fetchRestaurants() {
   try {
-    const response = await fetch(`${apiURL}/${itemId}`);
+    const response = await fetch(apiURL);
     const data = await response.json();
 
-    globalVariables = data.global;
-    restaurantsData = data.restaurants;
+    if (!data.length) throw new Error("No data in API");
 
+    const mainData = data[0];
+    itemId = mainData.id;           // get actual object ID
+    globalVariables = mainData.global;
+    restaurantsData = mainData.restaurants;
+
+    // Set search input to global value
     document.getElementById("search").value = globalVariables.searchValue || "";
     updateActiveGlobalsDisplay();
     filterList();
@@ -79,7 +84,7 @@ function updateActiveGlobalsDisplay() {
     : "";
 }
 
-// RENDER CARDS
+// RENDER RESTAURANT LIST
 function renderList(items) {
   const listEl = document.getElementById("restaurantList");
   listEl.innerHTML = "";
@@ -119,7 +124,7 @@ function renderList(items) {
   });
 }
 
-// FILTER LOGIC
+// FILTER LIST
 function filterList() {
   const searchText = document.getElementById("search").value.toLowerCase();
   const area = document.getElementById("areaFilter").value;
@@ -163,12 +168,14 @@ async function resetFilters() {
   filterList();
 
   try {
-    await fetch(`${apiURL}/${itemId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ global: globalVariables })
-    });
-    console.log("Global variables reset in API successfully.");
+    if (itemId) {
+      await fetch(`${apiURL}/${itemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ global: globalVariables })
+      });
+      console.log("Global variables reset in API successfully.");
+    }
   } catch (error) {
     console.error("Error resetting global variables in API:", error);
   }

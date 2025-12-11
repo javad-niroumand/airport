@@ -6,7 +6,6 @@
   <title>Zurich Airport Restaurants</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-
 <body class="bg-gray-100 font-sans">
 
 <!-- HEADER -->
@@ -47,22 +46,18 @@
 <script>
 let globalVariables = { restaurantType: "", searchValue: "" };
 let restaurantsData = [];
-let itemId = null; // store MockAPI item ID
 const apiURL = "https://6797e9d9c2c861de0c6e6bdf.mockapi.io/search";
+const itemId = 1; // Use the actual ID of your MockAPI object
 
 // FETCH DATA
 async function fetchRestaurants() {
   try {
-    const response = await fetch(apiURL);
+    const response = await fetch(`${apiURL}/${itemId}`);
     const data = await response.json();
 
-    const mainData = data[0]; // first object
-    itemId = mainData.id;
+    globalVariables = data.global;
+    restaurantsData = data.restaurants;
 
-    globalVariables = mainData.global;
-    restaurantsData = mainData.restaurants;
-
-    // Apply global variables as defaults
     document.getElementById("search").value = globalVariables.searchValue || "";
     updateActiveGlobalsDisplay();
     filterList();
@@ -77,10 +72,8 @@ async function fetchRestaurants() {
 function updateActiveGlobalsDisplay() {
   const container = document.getElementById("activeGlobals");
   const activeText = [];
-
   if (globalVariables.restaurantType) activeText.push(`Type: ${globalVariables.restaurantType}`);
   if (globalVariables.searchValue) activeText.push(`Search: ${globalVariables.searchValue}`);
-
   container.innerHTML = activeText.length
     ? `<p>Active global filters: ${activeText.join(", ")}</p>`
     : "";
@@ -91,17 +84,15 @@ function renderList(items) {
   const listEl = document.getElementById("restaurantList");
   listEl.innerHTML = "";
 
-  if (items.length === 0) {
+  if (!items.length) {
     listEl.innerHTML = '<p class="text-center text-gray-500">No restaurants found.</p>';
     return;
   }
 
   items.forEach(r => {
     const mapURL = r.mapLink || `https://www.google.com/maps?q=${r.lat},${r.lng}`;
-
     const card = document.createElement("div");
-    card.className =
-      "bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition shadow-md flex flex-col sm:flex-row";
+    card.className = "bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition shadow-md flex flex-col sm:flex-row";
 
     card.innerHTML = `
       <div class="w-full sm:w-36 h-40 sm:h-32 overflow-hidden flex-shrink-0">
@@ -140,7 +131,6 @@ function filterList() {
       r.locationInfo.toLowerCase().includes(searchText);
 
     const matchArea = area === "all" || r.area === area;
-
     const matchType = globalVariables.restaurantType
       ? r.cuisine.toLowerCase().includes(globalVariables.restaurantType.toLowerCase())
       : true;
@@ -148,7 +138,6 @@ function filterList() {
     return matchSearch && matchArea && matchType;
   });
 
-  // Prioritize exact match if global.searchValue exists
   if (globalVariables.searchValue) {
     const exact = filtered.filter(r =>
       r.name.toLowerCase().includes(globalVariables.searchValue.toLowerCase())
@@ -162,7 +151,7 @@ function filterList() {
   renderList(filtered);
 }
 
-// RESET FILTERS
+// RESET FILTERS USING PATCH
 async function resetFilters() {
   document.getElementById("search").value = "";
   document.getElementById("areaFilter").value = "all";
@@ -174,22 +163,12 @@ async function resetFilters() {
   filterList();
 
   try {
-    if (itemId) {
-      // Fetch current object to keep restaurants intact
-      const response = await fetch(`${apiURL}/${itemId}`);
-      const currentData = await response.json();
-
-      // Only update global, keep restaurants intact
-      const updatedData = { ...currentData, global: globalVariables };
-
-      await fetch(`${apiURL}/${itemId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedData)
-      });
-
-      console.log("Global variables reset in API successfully.");
-    }
+    await fetch(`${apiURL}/${itemId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ global: globalVariables })
+    });
+    console.log("Global variables reset in API successfully.");
   } catch (error) {
     console.error("Error resetting global variables in API:", error);
   }

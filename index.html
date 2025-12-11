@@ -6,6 +6,7 @@
 <title>Zurich Airport Restaurants</title>
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
+
 <body class="bg-gray-100 font-sans">
 
 <!-- HEADER -->
@@ -17,22 +18,27 @@
 
 <!-- FILTERS -->
 <div class="p-4 space-y-4">
-  <input type="text" id="search" placeholder="Search by name, cuisine, or info…" 
-         class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+  <input 
+    type="text" 
+    id="search"
+    placeholder="Search by name, cuisine, or info…" 
+    class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none">
   
-  <select id="areaFilter" class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+  <select 
+    id="areaFilter"
+    class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none">
     <option value="all">All areas</option>
     <option value="Public">Public Area</option>
     <option value="Passenger">Passenger Area</option>
   </select>
 
-  <button id="resetFilters" class="w-full p-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">
+  <button id="resetFilters"
+          class="w-full p-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">
     Reset Filters
   </button>
 </div>
 
-<!-- ACTIVE GLOBAL VARIABLES DISPLAY -->
-<div id="activeGlobals" class="p-4 space-y-2 text-gray-700"></div>
+<div id="activeGlobals" class="p-4 text-gray-700"></div>
 
 <!-- LIST -->
 <div id="restaurantList" class="p-4 space-y-6"></div>
@@ -44,18 +50,20 @@ const objectId = 1; // single object in API
 let globalVariables = { restaurantType: "", searchValue: "" };
 let restaurantsData = [];
 
-// Fetch the object from MockAPI
+// Fetch data
 async function fetchRestaurants() {
   try {
-    const res = await fetch(`${apiURL}/${objectId}`);
-    const data = await res.json();
+    const response = await fetch(`${apiURL}/${objectId}`);
+    const data = await response.json();
 
     globalVariables = data.global || { restaurantType: "", searchValue: "" };
     restaurantsData = data.restaurants || [];
 
-    document.getElementById("search").value = globalVariables.searchValue || "";
-    updateActiveGlobalsDisplay();
+    // Apply global variables
+    document.getElementById('search').value = globalVariables.searchValue || "";
+    updateGlobalDisplay();
     filterList();
+
   } catch (err) {
     console.error("Error fetching restaurants:", err);
     document.getElementById("restaurantList").innerHTML =
@@ -63,8 +71,8 @@ async function fetchRestaurants() {
   }
 }
 
-// Update displayed global variables
-function updateActiveGlobalsDisplay() {
+// Update display of global variables
+function updateGlobalDisplay() {
   const container = document.getElementById("activeGlobals");
   const active = [];
   if (globalVariables.restaurantType) active.push(`Type: ${globalVariables.restaurantType}`);
@@ -72,7 +80,7 @@ function updateActiveGlobalsDisplay() {
   container.innerHTML = active.length ? `<p>Active global filters: ${active.join(", ")}</p>` : "";
 }
 
-// Render restaurant list
+// Render restaurants
 function renderList(items) {
   const listEl = document.getElementById("restaurantList");
   listEl.innerHTML = "";
@@ -83,13 +91,12 @@ function renderList(items) {
   }
 
   items.forEach(r => {
-    const mapURL = r.mapLink || "#";
     const card = document.createElement("div");
     card.className = "bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition shadow-md flex flex-col sm:flex-row";
 
     card.innerHTML = `
       <div class="w-full sm:w-36 h-40 sm:h-32 overflow-hidden flex-shrink-0">
-        <img src="${r.photoURL}" alt="Photo of ${r.name}" class="w-full h-full object-cover sm:rounded-l-xl rounded-t-xl">
+        <img src="${r.photoURL}" alt="${r.name}" class="w-full h-full object-cover sm:rounded-l-xl rounded-t-xl">
       </div>
       <div class="p-5 flex-1 flex flex-col justify-between space-y-2">
         <div>
@@ -101,7 +108,7 @@ function renderList(items) {
         <div class="flex space-x-3 mt-3">
           ${r.website ? `<a href="${r.website}" target="_blank" rel="noopener noreferrer"
             class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">Website</a>` : ""}
-          <a href="${mapURL}" target="_blank" rel="noopener noreferrer"
+          <a href="${r.mapLink}" target="_blank" rel="noopener noreferrer"
              class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">Map</a>
         </div>
       </div>
@@ -110,13 +117,13 @@ function renderList(items) {
   });
 }
 
-// Filter list
+// Filter restaurants
 function filterList() {
   const searchText = document.getElementById("search").value.toLowerCase();
   const area = document.getElementById("areaFilter").value;
 
   let filtered = restaurantsData.filter(r => {
-    const matchSearch = !searchText ||
+    const matchSearch = !searchText || 
       r.name.toLowerCase().includes(searchText) ||
       r.cuisine.toLowerCase().includes(searchText) ||
       r.locationInfo.toLowerCase().includes(searchText);
@@ -136,14 +143,12 @@ function filterList() {
 }
 
 // Reset filters and PATCH API
-async function resetFilters() {
+document.getElementById("resetFilters").addEventListener("click", async () => {
   document.getElementById("search").value = "";
   document.getElementById("areaFilter").value = "all";
-
   globalVariables.restaurantType = "";
   globalVariables.searchValue = "";
-
-  updateActiveGlobalsDisplay();
+  updateGlobalDisplay();
   filterList();
 
   try {
@@ -152,20 +157,18 @@ async function resetFilters() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ global: globalVariables })
     });
-    console.log("Global variables reset successfully in API.");
+    console.log("Global variables reset in API");
   } catch (err) {
     console.error("Error resetting global variables:", err);
   }
-}
+});
 
 // Event listeners
 document.getElementById("search").addEventListener("input", filterList);
 document.getElementById("areaFilter").addEventListener("change", filterList);
-document.getElementById("resetFilters").addEventListener("click", resetFilters);
 
-// Initial load
+// Initial fetch
 fetchRestaurants();
-setInterval(fetchRestaurants, 5000);
 </script>
 
 </body>

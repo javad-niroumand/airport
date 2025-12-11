@@ -6,6 +6,7 @@
   <title>Zurich Airport Restaurants</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
+
 <body class="bg-gray-100 font-sans">
 
 <!-- HEADER -->
@@ -41,24 +42,21 @@
 <div id="restaurantList" class="p-4 space-y-6"></div>
 
 <script>
-const apiURL = "https://6797e9d9c2c861de0c6e6bdf.mockapi.io/search";
+const apiURL = "https://6797e9d9c2c861de0c6e6bdf.mockapi.io/search/1";
+
 let globalVariables = { restaurantType: "", searchValue: "" };
 let restaurantsData = [];
 
-// FETCH DATA
+// FETCH DATA FROM API
 async function fetchRestaurants() {
   try {
     const response = await fetch(apiURL);
     const data = await response.json();
 
-    if (!data || !data.length) return;
-    
-    const firstItem = data[0];
-    globalVariables = firstItem.global || {};
-    restaurantsData = firstItem.restaurants || [];
+    globalVariables = data.global || {};
+    restaurantsData = data.restaurants || [];
 
-    // Apply global variables as default filter
-    document.getElementById('search').value = globalVariables.searchValue || "";
+    document.getElementById("search").value = globalVariables.searchValue || "";
     filterList();
 
   } catch (error) {
@@ -68,7 +66,50 @@ async function fetchRestaurants() {
   }
 }
 
-// RENDER CARDS
+// FUZZY MATCH FUNCTION
+function fuzzyMatch(str, query) {
+  str = str.toLowerCase();
+  query = query.toLowerCase();
+
+  if (str.includes(query)) return true;
+
+  // Allow ~70% similarity
+  let count = 0;
+  for (let i = 0; i < query.length; i++) {
+    if (str.includes(query[i])) count++;
+  }
+  return count / query.length >= 0.7;
+}
+
+// MAIN FILTER LOGIC
+function filterList() {
+  const search = document.getElementById("search").value.trim().toLowerCase();
+  const area = document.getElementById("areaFilter").value;
+
+  let filtered = restaurantsData.filter(r => {
+    const name = r.name.toLowerCase();
+    const cuisine = (r.cuisine || "").toLowerCase();
+    const info = (r.locationInfo || "").toLowerCase();
+
+    const matchSearch = 
+      !search ||
+      fuzzyMatch(name, search) ||
+      fuzzyMatch(cuisine, search) ||
+      fuzzyMatch(info, search);
+
+    const matchArea = area === "all" || r.area === area;
+
+    const matchType = globalVariables.restaurantType
+      ? cuisine.includes(globalVariables.restaurantType.toLowerCase())
+      : true;
+
+    return matchSearch && matchArea && matchType;
+  });
+
+  renderList(filtered);
+}
+
+// RENDER RESTAURANT CARDS
 function renderList(items) {
   const listEl = document.getElementById("restaurantList");
   listEl.innerHTML = "";
@@ -84,10 +125,10 @@ function renderList(items) {
       "bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition shadow-md";
 
     card.innerHTML = `
-      <div class="w-full h-40 sm:w-full sm:h-48 overflow-hidden">
+      <div class="w-full h-40 overflow-hidden">
         <img 
           src="${r.photoURL}"
-          alt="Photo of ${r.name}"
+          alt="${r.name}"
           class="w-full h-full object-cover"
         >
       </div>
@@ -99,12 +140,15 @@ function renderList(items) {
         <p class="text-gray-600">${r.locationInfo}</p>
 
         <div class="flex space-x-3 pt-3">
-          ${r.website
-            ? `<a href="${r.website}" target="_blank" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">Website</a>`
-            : ""
+          ${r.website ? 
+            `<a href="${r.website}" target="_blank"
+              class="px-4 py-2 bg-blue-600 text-white rounded-lg">
+              Website
+            </a>` : ""
           }
-          <a href="${r.mapLink}" target="_blank" 
-             class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+
+          <a href="${r.mapLink}" target="_blank"
+             class="px-4 py-2 bg-green-600 text-white rounded-lg">
              Map
           </a>
         </div>
@@ -115,52 +159,17 @@ function renderList(items) {
   });
 }
 
-// FILTER LOGIC
-function filterList() {
-  const searchText = document.getElementById("search").value.toLowerCase();
-  const area = document.getElementById("areaFilter").value;
-
-  let filtered = restaurantsData.filter(r => {
-    const matchSearch =
-      (!searchText || 
-       r.name.toLowerCase().includes(searchText) ||
-       r.cuisine.toLowerCase().includes(searchText) ||
-       r.locationInfo.toLowerCase().includes(searchText));
-
-    const matchArea = area === "all" || r.area === area;
-
-    const matchType = globalVariables.restaurantType
-      ? r.cuisine.toLowerCase().includes(globalVariables.restaurantType.toLowerCase())
-      : true;
-
-    return matchSearch && matchArea && matchType;
-  });
-
-  // Prioritize exact match if global.searchValue exists
-  if (globalVariables.searchValue) {
-    const exact = filtered.filter(r =>
-      r.name.toLowerCase().includes(globalVariables.searchValue.toLowerCase())
-    );
-    const rest = filtered.filter(
-      r => !r.name.toLowerCase().includes(globalVariables.searchValue.toLowerCase())
-    );
-    filtered = [...exact, ...rest];
-  }
-
-  renderList(filtered);
-}
-
 // RESET FILTERS + PATCH API
 document.getElementById("resetFilters").addEventListener("click", async () => {
   document.getElementById("search").value = "";
   document.getElementById("areaFilter").value = "all";
-  globalVariables.restaurantType = "";
-  globalVariables.searchValue = "";
 
+  globalVariables = { restaurantType: "", searchValue: "" };
   filterList();
 
+  // PATCH EXACTLY AS YOU REQUESTED
   try {
-    const response = await fetch(`${apiURL}/1`, {
+    await fetch(apiURL, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -168,23 +177,19 @@ document.getElementById("resetFilters").addEventListener("click", async () => {
       })
     });
 
-    if (response.ok) {
-      console.log("Global variables successfully reset in API");
-    } else {
-      console.error("Failed to reset API. Status:", response.status);
-    }
+    console.log("API globals reset successfully");
+
   } catch (err) {
-    console.error("Error patching API:", err);
+    console.error("PATCH failed:", err);
   }
 });
 
-// EVENT LISTENERS
+// LISTENERS
 document.getElementById("search").addEventListener("input", filterList);
 document.getElementById("areaFilter").addEventListener("change", filterList);
 
-// INITIAL LOAD + AUTO-POLL
+// INITIAL LOAD
 fetchRestaurants();
-setInterval(fetchRestaurants, 5000);
 </script>
 
 </body>

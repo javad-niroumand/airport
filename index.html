@@ -44,7 +44,6 @@
 const apiURL = "https://6797e9d9c2c861de0c6e6bdf.mockapi.io/search";
 let globalVariables = { restaurantType: "", searchValue: "" };
 let restaurantsData = [];
-let firstItemId = null;
 
 // FETCH DATA
 async function fetchRestaurants() {
@@ -55,7 +54,6 @@ async function fetchRestaurants() {
     if (!data || !data.length) return;
     
     const firstItem = data[0];
-    firstItemId = firstItem.id; // store for PATCH
     globalVariables = firstItem.global || {};
     restaurantsData = firstItem.restaurants || [];
 
@@ -161,17 +159,22 @@ document.getElementById("resetFilters").addEventListener("click", async () => {
 
   filterList();
 
-  if (!firstItemId) return;
-
   try {
-    await fetch(`${apiURL}/${firstItemId}`, {
+    const response = await fetch(`${apiURL}/1`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ global: { restaurantType: "", searchValue: "" } })
+      body: JSON.stringify({
+        global: { restaurantType: "", searchValue: "" }
+      })
     });
-    console.log("Global variables reset in API");
+
+    if (response.ok) {
+      console.log("Global variables successfully reset in API");
+    } else {
+      console.error("Failed to reset API. Status:", response.status);
+    }
   } catch (err) {
-    console.error("Failed to PATCH global variables:", err);
+    console.error("Error patching API:", err);
   }
 });
 

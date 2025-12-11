@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zurich Airport Restaurants</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-100 font-sans">
+
+<!-- HEADER -->
+<header class="bg-gray-900 text-white p-6 text-center shadow-lg flex flex-col items-center justify-center space-y-3">
+  <img src="https://logoref.wordpress.com/wp-content/uploads/2014/06/zurichairport.jpg?w=1272" 
+       alt="Airplane" class="w-40 h-20 opacity-90">
+  <h1 class="text-3xl font-bold tracking-wide">Zurich Airport Restaurants</h1>
+</header>
+
+<!-- FILTERS -->
+<div class="p-4 space-y-4">
+  <input 
+    type="text" 
+    id="search"
+    placeholder="Search by name, cuisine, or info…" 
+    class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+  
+  <select 
+    id="areaFilter"
+    class="w-full p-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+    <option value="all">All areas</option>
+    <option value="Public">Public Area</option>
+    <option value="Passenger">Passenger Area</option>
+  </select>
+</div>
+
+<!-- LIST -->
+<div id="restaurantList" class="p-4 space-y-6"></div>
+
+<script>
+let globalVariables = { restaurantType: "", searchValue: "" };
+let restaurantsData = [];
+
+// FETCH DATA
+async function fetchRestaurants() {
+  try {
+    const response = await fetch("https://6797e9d9c2c861de0c6e6bdf.mockapi.io/search");
+    const data = await response.json();
+
+    globalVariables = data[0].global;
+    restaurantsData = data[0].restaurants;
+
+    filterList(); // Render at least once
+
+  } catch (error) {
+    console.error("Error fetching restaurants:", error);
+    document.getElementById("restaurantList").innerHTML =
+      "<p class='text-center text-red-500'>Failed to load restaurants.</p>";
+  }
+}
+
+// RENDER CARDS
+function renderList(items) {
+  const listEl = document.getElementById("restaurantList");
+  listEl.innerHTML = "";
+
+  if (items.length === 0) {
+    listEl.innerHTML = '<p class="text-center text-gray-500">No restaurants found.</p>';
+    return;
+  }
+
+  items.forEach(r => {
+    const card = document.createElement("div");
+    card.className =
+      "bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition shadow-md";
+
+    card.innerHTML = `
+      <div class="w-full h-40 sm:w-full sm:h-48 overflow-hidden">
+        <img 
+          src="${r.photoURL}"
+          alt="Photo of ${r.name}"
+          class="w-full h-full object-cover"
+        >
+      </div>
+
+      <div class="p-5 space-y-2">
+        <h2 class="text-xl font-semibold">${r.name}</h2>
+        <p class="text-gray-600"><strong>Area:</strong> ${r.area}</p>
+        <p class="text-gray-600"><strong>Type:</strong> ${r.cuisine || "—"}</p>
+        <p class="text-gray-600">${r.locationInfo}</p>
+
+        <div class="flex space-x-3 pt-3">
+          ${r.website
+            ? `<a href="${r.website}" target="_blank" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">Website</a>`
+            : ""
+          }
+          <a href="${r.mapLink}" target="_blank" 
+             class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+             Map
+          </a>
+        </div>
+      </div>
+    `;
+
+    listEl.appendChild(card);
+  });
+}
+
+// FILTER LOGIC
+function filterList() {
+  const searchText = document.getElementById("search").value.toLowerCase();
+  const area = document.getElementById("areaFilter").value;
+
+  let filtered = restaurantsData.filter(r => {
+    const matchSearch =
+      !searchText ||
+      r.name.toLowerCase().includes(searchText) ||
+      r.cuisine.toLowerCase().includes(searchText) ||
+      r.locationInfo.toLowerCase().includes(searchText);
+
+    const matchArea = area === "all" || r.area === area;
+
+    const matchType = globalVariables.restaurantType
+      ? r.cuisine.toLowerCase().includes(globalVariables.restaurantType.toLowerCase())
+      : true;
+
+    return matchSearch && matchArea && matchType;
+  });
+
+  // Prioritize exact match if global.searchValue exists
+  if (globalVariables.searchValue) {
+    const exact = filtered.filter(r =>
+      r.name.toLowerCase().includes(globalVariables.searchValue.toLowerCase())
+    );
+    const rest = filtered.filter(
+      r => !r.name.toLowerCase().includes(globalVariables.searchValue.toLowerCase())
+    );
+    filtered = [...exact, ...rest];
+  }
+
+  renderList(filtered);
+}
+
+// EVENTS
+document.getElementById("search").addEventListener("input", filterList);
+document.getElementById("areaFilter").addEventListener("change", filterList);
+
+// INITIAL LOAD + AUTO-POLL EVERY 5s
+fetchRestaurants();
+setInterval(fetchRestaurants, 5000);
+</script>
+
+</body>
+</html>

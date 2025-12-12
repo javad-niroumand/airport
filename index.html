@@ -44,20 +44,14 @@
 const apiURL = "https://6797e9d9c2c861de0c6e6bdf.mockapi.io/search";
 let globalVariables = { restaurantType: "", searchValue: "" };
 let restaurantsData = [];
+let firstItemId = "1"; // ID for PATCH
 
 // FUZZY MATCH FUNCTION
-function fuzzyMatch(str, query) {
+function fuzzyMatch(str, pattern) {
+  if (!pattern) return true;
   str = str.toLowerCase();
-  query = query.toLowerCase();
-
-  if (str.includes(query)) return true;
-
-  // simple fuzzy: allow ~70% character match
-  let matches = 0;
-  for (let i = 0; i < query.length; i++) {
-    if (str.includes(query[i])) matches++;
-  }
-  return matches / query.length >= 0.7;
+  pattern = pattern.toLowerCase();
+  return str.includes(pattern) || pattern.split(' ').every(p => str.includes(p));
 }
 
 // FETCH DATA
@@ -65,14 +59,17 @@ async function fetchRestaurants() {
   try {
     const response = await fetch(apiURL);
     const data = await response.json();
-
     if (!data || !data.length) return;
-    
+
     const firstItem = data[0];
     globalVariables = firstItem.global || {};
     restaurantsData = firstItem.restaurants || [];
 
-    document.getElementById('search').value = globalVariables.searchValue || "";
+    // Apply global variables to search input if not typing
+    if (!document.activeElement.isEqualNode(document.getElementById('search'))) {
+      document.getElementById('search').value = globalVariables.searchValue || "";
+    }
+
     filterList();
 
   } catch (error) {
@@ -131,19 +128,19 @@ function renderList(items) {
 
 // FILTER LOGIC WITH FUZZY MATCH
 function filterList() {
-  const searchText = document.getElementById("search").value.trim().toLowerCase();
+  const searchText = document.getElementById("search").value;
   const area = document.getElementById("areaFilter").value;
 
   let filtered = restaurantsData.filter(r => {
-    const matchSearch = !searchText || 
+    const matchSearch =
       fuzzyMatch(r.name, searchText) ||
-      fuzzyMatch(r.cuisine || "", searchText) ||
-      fuzzyMatch(r.locationInfo || "", searchText);
+      fuzzyMatch(r.cuisine, searchText) ||
+      fuzzyMatch(r.locationInfo, searchText);
 
     const matchArea = area === "all" || r.area === area;
 
     const matchType = globalVariables.restaurantType
-      ? (r.cuisine || "").toLowerCase().includes(globalVariables.restaurantType.toLowerCase())
+      ? fuzzyMatch(r.cuisine, globalVariables.restaurantType)
       : true;
 
     return matchSearch && matchArea && matchType;
@@ -156,20 +153,18 @@ function filterList() {
 document.getElementById("resetFilters").addEventListener("click", async () => {
   document.getElementById("search").value = "";
   document.getElementById("areaFilter").value = "all";
-  globalVariables = { restaurantType: "", searchValue: "" };
+  globalVariables.restaurantType = "";
+  globalVariables.searchValue = "";
+
   filterList();
 
   try {
-    const response = await fetch(`${apiURL}/1`, {
+    await fetch(`${apiURL}/${firstItemId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        global: { restaurantType: "", searchValue: "" }
-      })
+      body: JSON.stringify({ global: { restaurantType: "", searchValue: "" } })
     });
-
-    if (!response.ok) console.error("Failed to reset API. Status:", response.status);
-    else console.log("Global variables reset in API");
+    console.log("Global variables successfully reset in API");
   } catch (err) {
     console.error("Error patching API:", err);
   }
@@ -179,8 +174,9 @@ document.getElementById("resetFilters").addEventListener("click", async () => {
 document.getElementById("search").addEventListener("input", filterList);
 document.getElementById("areaFilter").addEventListener("change", filterList);
 
-// INITIAL LOAD
-fetchRestaurants();
+// INITIAL LOAD + AUTO-POLL
+fetchRestaurants(); // first load
+setInterval(fetchRestaurants, 5000); // fetch every 5s
 </script>
 
 </body>

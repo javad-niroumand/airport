@@ -1,5 +1,8 @@
-
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Wave Shoes — Ride the Wave of Style</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;900&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -1064,6 +1067,8 @@
     .buy-detail-panel { padding: 1.5rem; }
   }
 </style>
+</head>
+<body>
 
 <!-- Agent notification toast -->
 <div id="agent-toast">🎙 Agent connected</div>
@@ -1759,6 +1764,31 @@
 <script type="module">
   import { AgentSDK } from 'https://cdn.jsdelivr.net/npm/@koreai/artemis-web-sdk/+esm';
 
+  // ── Debug panel ────────────────────────────────────────────────
+  function showDebugPanel(msg) {
+    let panel = document.getElementById('koreai-debug');
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.id = 'koreai-debug';
+      panel.style.cssText = `
+        position:fixed;bottom:90px;right:28px;z-index:10000;
+        background:#1a1a2e;color:#ff6b6b;font-family:monospace;font-size:0.72rem;
+        padding:12px 14px;border-radius:10px;max-width:320px;
+        box-shadow:0 4px 20px rgba(0,0,0,0.4);line-height:1.5;
+        border:1px solid rgba(255,107,107,0.3);
+      `;
+      document.body.appendChild(panel);
+    }
+    panel.innerHTML = `
+      <div style="color:#ff9f43;font-weight:700;margin-bottom:6px">⚠ Kore.ai SDK Error</div>
+      <div style="color:#ff6b6b;margin-bottom:8px;word-break:break-word">${msg}</div>
+      <div style="color:#aaa;font-size:0.68rem">Origin: ${location.origin}</div>
+      <div style="color:#aaa;font-size:0.68rem">→ Add this origin in Kore.ai Console → Agent → Channel → Allowed Origins</div>
+      <div style="color:#888;font-size:0.65rem;margin-top:6px">Full error in DevTools Console (F12)</div>
+      <button onclick="this.parentElement.remove()" style="margin-top:8px;background:#333;border:none;color:#aaa;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:0.68rem">Dismiss</button>
+    `;
+  }
+
   // ── Widget helpers ──────────────────────────────────────────
   function setWidgetState(state, label) {
     const w   = document.getElementById('koreai-widget');
@@ -1813,15 +1843,19 @@
     });
 
     _sdk.on('error', ({ error }) => {
+      const msg = (error && (error.message || String(error))) || 'Unknown error';
       console.error('[sdk] error:', error);
       setWidgetState('error', 'Connection error');
+      showDebugPanel(msg);
     });
 
     try {
       await _sdk.connect();
     } catch(err) {
+      const msg = (err && (err.message || String(err))) || 'Unknown error';
       console.error('[sdk] connect() threw:', err);
-      setWidgetState('error', 'Connect failed — see console (F12)');
+      setWidgetState('error', 'Connect failed');
+      showDebugPanel(msg);
       return;
     }
 
@@ -2270,4 +2304,5 @@
   }
 </style>
 
-</body></html>
+</body>
+</html>

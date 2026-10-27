@@ -1438,18 +1438,21 @@ renderGrid();
 render();
 </script>
 
-<!-- Agent SDK Widget -->
 <script src="https://agents.kore.ai/api/sdk/embed/script" defer></script>
 <agent-widget
   project-id="01a0e3fe-6c1e-7580-aa51-d4e9c15eee5a"
-  api-key="pk_dde9243fe140fa369d084f2901aadc0799b26ace5e48bb48"
+  api-key="pk_7f0db2ec160e7c19de76bbe8324ece094e76eff0b27df1aa"
   endpoint="https://agents.kore.ai"
-  channel-id="01a17ac4-8edc-7494-a398-346dd3f448a8"
+  channel-id="01a17ad4-bba7-7247-8840-9acbd3f9920d"
   client-session-identifier="true"
   chat-enabled="true"
-  voice-enabled="false"
+  voice-enabled="true"
   mode="unified"
   position="bottom-right"
+  vad-script-url="https://agents.kore.ai/api/sdk/assets/vad-web/bundle.min.js"
+  onnx-runtime-script-url="https://agents.kore.ai/api/sdk/assets/onnxruntime-web/ort.wasm.min.js"
+  vad-base-asset-path="https://agents.kore.ai/api/sdk/assets/vad-web/"
+  onnx-wasm-base-path="https://agents.kore.ai/api/sdk/assets/onnxruntime-web/"
 ></agent-widget>
 
 </body>
